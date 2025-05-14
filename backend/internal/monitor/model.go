@@ -17,7 +17,15 @@ func (s MonitorStatus) IsValid() bool {
 }
 
 type Monitor struct {
-	Endpoint string `json:"endpoint"`
-	Interval int    `json:"interval"`
+	Id       string        `json:"id"`
+	Endpoint string        `json:"endpoint"`
+	Interval int           `json:"interval"`
 	Status   MonitorStatus `json:"status"`
+}
+
+type MonitorResult struct {
+	Id      string        `json:"id"`
+	Date    string        `json:"date"`
+	Latency int64         `json:"latency"`
+	Status  MonitorStatus `json:"status"`
 }

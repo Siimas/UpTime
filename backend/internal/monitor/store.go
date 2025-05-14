@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -24,6 +25,7 @@ func GetMonitor(ctx context.Context, rdb *redis.Client, key string) (Monitor, er
 	status := MonitorStatus(data["status"])
 
 	return Monitor{
+		Id: strings.Split(key, ":")[1],
 		Endpoint: data["endpoint"],
 		Interval: interval,
 		Status:   status,

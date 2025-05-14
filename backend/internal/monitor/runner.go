@@ -6,14 +6,17 @@ import (
 	"log"
 	"time"
 
+	"uptime/internal/constants"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/redis/go-redis/v9"
 )
 
-func RunScheduler(ctx context.Context, rdb *redis.Client) {
+func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *kafka.Producer) {
 	for {
 		now := float64(time.Now().Unix())
 
-		monitorIDs, err := rdb.ZRangeByScore(ctx, "monitors_schedule", &redis.ZRangeBy{
+		monitorIDs, err := rdb.ZRangeByScore(ctx, constants.RedisMonitorsScheduleKey, &redis.ZRangeBy{
 			Min:   "-inf",
 			Max:   fmt.Sprintf("%f", now),
 			Count: 1000,
@@ -30,12 +33,10 @@ func RunScheduler(ctx context.Context, rdb *redis.Client) {
 				continue
 			}
 
-			go func(m Monitor) {
-				fmt.Printf("Monitor: %+v\n", m)
-			}(monitor)
+			go Ping(monitor, kp)
 
 			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
-			rdb.ZAdd(ctx, "monitors_schedule", redis.Z{
+			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
 				Score:  float64(nextPing),
 				Member: key,
 			})

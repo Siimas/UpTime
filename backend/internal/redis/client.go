@@ -1,4 +1,4 @@
-package internal
+package redis
 
 import (
 	"os"
@@ -8,8 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func BuildRedisClient() *redis.Client{
-	// Load .env file
+func NewClient() *redis.Client {
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("Error loading .env file")
 		os.Exit(1)
@@ -20,6 +19,6 @@ func BuildRedisClient() *redis.Client{
 		fmt.Println("Error loading .env file")
 		os.Exit(1)
 	}
-  client := redis.NewClient(opt)
-	return client
+
+	return redis.NewClient(opt)
 }

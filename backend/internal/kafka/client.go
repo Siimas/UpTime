@@ -15,9 +15,9 @@ func NewConsumer(bootstrapServers string) (*kafka.Consumer, error) {
 		// "sasl.password":     "<CLUSTER API SECRET>",
 
 		// Fixed properties
-		"security.protocol": "SASL_SSL",
-		"sasl.mechanisms":   "PLAIN",
-		"group.id":          "uptime-group",
+		// "security.protocol": "SASL_SSL",
+		// "sasl.mechanisms":   "PLAIN",
+		"group.id":          "kafka-go-local-consumer",
 		"auto.offset.reset": "earliest"})
 		if err != nil {
 			return nil, err

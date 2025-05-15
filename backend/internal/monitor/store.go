@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -30,4 +31,18 @@ func GetMonitor(ctx context.Context, rdb *redis.Client, key string) (Monitor, er
 		Interval: interval,
 		Status:   status,
 	}, nil
+}
+
+func LogMonitorResult(mr MonitorResult) error {
+	fmt.Println("Monitor Result: {")
+	fmt.Printf("\tId: %s\n", mr.Id)
+	fmt.Printf("\tStatus: %s\n", mr.Status)
+	fmt.Printf("\tLatency: %d ms\n", mr.Latency)
+	fmt.Printf("\tDate: %s\n", mr.Date)
+	fmt.Println("}")
+	return nil
+}
+
+func StoreMonitorResult(mr MonitorResult) error {
+	return nil
 }

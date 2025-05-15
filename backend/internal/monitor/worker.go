@@ -32,7 +32,7 @@ func Ping(monitor Monitor, kp *kafka.Producer) {
 		key := "monitor:"+monitor.Id
 		monitorResult := MonitorResult{
 			Id: monitor.Id,
-			Date: time.Now().String(),
+			Date: time.Now().Format("2006-01-02 15:04:05-07"),
 			Latency: latency.Milliseconds(),
 			Status: monitor.Status,
 		}

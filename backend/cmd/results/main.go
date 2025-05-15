@@ -6,6 +6,7 @@ import (
 	"os"
 	"uptime/internal/kafka"
 	"uptime/internal/monitor"
+	"uptime/internal/postgres"
 
 	"github.com/joho/godotenv"
 )
@@ -18,11 +19,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	db := postgres.NewConnection(ctx, os.Getenv("DATABASE_URL"))
+	defer db.Close(context.Background())
+
 	kc, err := kafka.NewConsumer("localhost:" + os.Getenv("KAFKA_PLAINTEXT_PORTS"))
 	if err != nil {
 		fmt.Printf("Failed to create kafka producer: %s", err)
 		os.Exit(1)
 	}
 
-	monitor.RunMonitorResults(ctx, kc)
+	monitor.RunMonitorResults(ctx, db, kc)
 }

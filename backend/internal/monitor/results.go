@@ -10,10 +10,11 @@ import (
 	"time"
 	"uptime/internal/constants"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-func RunMonitorResults(ctx context.Context, kc *kafka.Consumer) {
+func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer) {
 	err := kc.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil)
 	if err != nil {
 		fmt.Printf("Couldn't subscribe to topic: %s\n", err)
@@ -40,14 +41,14 @@ func RunMonitorResults(ctx context.Context, kc *kafka.Consumer) {
 				continue
 			}			
 			
-			go handleMonitorResult(ev)
+			go handleMonitorResult(ctx, ev, db)
 		}
 	}
 
 	kc.Close()
 }
 
-func handleMonitorResult(km *kafka.Message) error {
+func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn) error {
 	var monitorResult MonitorResult
 	if err := json.Unmarshal(km.Value, &monitorResult); err != nil {
 		fmt.Printf("Error converting json to monitor result: %s\n", err)
@@ -59,8 +60,8 @@ func handleMonitorResult(km *kafka.Message) error {
 		return err
 	}
 
-	if err := StoreMonitorResult(monitorResult); err != nil {
-		fmt.Printf("Error logging monitor result: %s\n", err)
+	if err := StoreMonitorResult(ctx, monitorResult, db); err != nil {
+		fmt.Printf("Error storing monitor result: %s\n", err)
 		return err
 	}
 

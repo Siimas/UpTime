@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"uptime/internal/constants"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
@@ -45,16 +46,17 @@ func LogMonitorResult(mr MonitorResult) error {
 	return nil
 }
 
-// todo
+func UpdateMonitorStatus(ctx context.Context, mr MonitorResult, rdb *redis.Client) error {
+	key := constants.RedisMonitorKey + ":" + mr.Id
+	return rdb.HSet(ctx, key, "status", mr.Status).Err()
+}
+
 func StoreMonitorResult(ctx context.Context, mr MonitorResult, db *pgx.Conn) error {
 	sql := `INSERT INTO monitor_results (monitor_id, status, latency_ms, checked_at) VALUES ($1, $2, $3, $4)`
-
-	_, err := db.Exec(ctx, sql, mr.Id, mr.Status, mr.Latency, mr.Date)
-	if err != nil {
+	
+	if _, err := db.Exec(ctx, sql, mr.Id, mr.Status, mr.Latency, mr.Date); err != nil {
 		return err
 	}
-
-	fmt.Println("Succefully inserted result")
 
 	return nil
 }

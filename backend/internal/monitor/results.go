@@ -10,11 +10,12 @@ import (
 	"time"
 	"uptime/internal/constants"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer) {
+func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client) {
 	err := kc.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil)
 	if err != nil {
 		fmt.Printf("Couldn't subscribe to topic: %s\n", err)
@@ -41,14 +42,14 @@ func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer) {
 				continue
 			}			
 			
-			go handleMonitorResult(ctx, ev, db)
+			go handleMonitorResult(ctx, ev, db, rdb)
 		}
 	}
 
 	kc.Close()
 }
 
-func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn) error {
+func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, rdb *redis.Client) error {
 	var monitorResult MonitorResult
 	if err := json.Unmarshal(km.Value, &monitorResult); err != nil {
 		fmt.Printf("Error converting json to monitor result: %s\n", err)
@@ -63,6 +64,13 @@ func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn) e
 	if err := StoreMonitorResult(ctx, monitorResult, db); err != nil {
 		fmt.Printf("Error storing monitor result: %s\n", err)
 		return err
+	}
+
+	if monitorResult.Status == StatusOffline {
+		if err := UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
+			fmt.Printf("Error storing monitor result: %s\n", err)
+			return err
+		}
 	}
 
 	return nil

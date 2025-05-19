@@ -59,3 +59,17 @@ func ScheduleMonitor(ctx context.Context, mr Monitor, rdb *redis.Client) error {
 
 	return nil
 }
+
+func DeleteMonitor(ctx context.Context, monitorId string, rdb *redis.Client) error {
+	key := constants.RedisMonitorKey + ":" + monitorId
+
+	if err := rdb.Del(ctx, key).Err(); err != nil {
+		return err
+	}
+
+	if err := rdb.ZRem(ctx, constants.RedisMonitorsScheduleKey, key).Err(); err != nil {
+		return err
+	}
+
+	return nil
+}

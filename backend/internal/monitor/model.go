@@ -8,6 +8,10 @@ const (
 	StatusPaused  MonitorStatus = "Paused"
 )
 
+func (s MonitorStatus) string() string {
+	return string(s)
+}
+
 func (s MonitorStatus) IsValid() bool {
 	switch s {
 	case StatusOnline, StatusOffline, StatusPaused:
@@ -26,6 +30,8 @@ type Monitor struct {
 type MonitorResult struct {
 	Id      string        `json:"id"`
 	Date    string        `json:"date"`
-	Latency int64         `json:"latency"`
 	Status  MonitorStatus `json:"status"`
+	Latency int64         `json:"latency"`
+	Code    int           `json:"code"`
+	Error   string        `json:"error"`
 }

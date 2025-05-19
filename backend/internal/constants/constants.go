@@ -1,7 +1,7 @@
 package constants
 
 const(
-	RedisMonitorKey = "monitors_schedule"
+	RedisMonitorKey = "monitor"
 	RedisMonitorsScheduleKey = "monitors_schedule"
 	KafkaMonitorResultsTopic = "monitor_results"
 )

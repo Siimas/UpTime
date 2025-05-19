@@ -68,7 +68,7 @@ func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, r
 
 	if monitorResult.Status == StatusOffline {
 		if err := UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
-			fmt.Printf("Error storing monitor result: %s\n", err)
+			fmt.Printf("Error updating monitor status: %s\n", err)
 			return err
 		}
 	}

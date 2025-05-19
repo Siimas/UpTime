@@ -10,7 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-func Ping(monitor Monitor, kp *kafka.Producer) {
+func Ping(monitorId string, monitor MonitorCache, kp *kafka.Producer) {
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
@@ -34,13 +34,13 @@ func Ping(monitor Monitor, kp *kafka.Producer) {
 
 	var status MonitorStatus
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		status = StatusOnline
+		status = StatusUp
 	} else {
-		status = StatusOffline
+		status = StatusDown
 	}
 
 	monitorResult := MonitorResult{
-		Id:      monitor.Id,
+		Id:      monitorId,
 		Date:    time.Now().Format("2006-01-02 15:04:05-07"),
 		Latency: latency.Milliseconds(),
 		Status:  status,
@@ -55,7 +55,7 @@ func Ping(monitor Monitor, kp *kafka.Producer) {
 	}
 
 	topic := constants.KafkaMonitorResultsTopic
-	key := constants.RedisMonitorKey + ":" + monitor.Id
+	key := constants.RedisMonitorKey + ":" + monitorId
 	kp.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            []byte(key),

@@ -3,9 +3,8 @@ package monitor
 type MonitorStatus string
 
 const (
-	StatusOnline  MonitorStatus = "Online"
-	StatusOffline MonitorStatus = "Offline"
-	StatusPaused  MonitorStatus = "Paused"
+	StatusUp   MonitorStatus = "Up"
+	StatusDown MonitorStatus = "Down"
 )
 
 func (s MonitorStatus) string() string {
@@ -14,14 +13,20 @@ func (s MonitorStatus) string() string {
 
 func (s MonitorStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusPaused:
+	case StatusUp, StatusDown:
 		return true
 	}
 	return false
 }
 
 type Monitor struct {
-	Id       string        `json:"id"`
+	Id       string `json:"id"`
+	Endpoint string `json:"endpoint"`
+	Interval int    `json:"interval"`
+	Active   bool   `json:"active"`
+}
+
+type MonitorCache struct {
 	Endpoint string        `json:"endpoint"`
 	Interval int           `json:"interval"`
 	Status   MonitorStatus `json:"status"`

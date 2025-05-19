@@ -1,8 +1,8 @@
 package util
 
 import (
-	"encoding/json"
 	"fmt"
+	"encoding/json"
 )
 
 func PrettyPrint(v any) {

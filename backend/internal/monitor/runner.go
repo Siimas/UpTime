@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"uptime/internal/constants"
@@ -33,7 +34,7 @@ func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *kafka.Producer
 				continue
 			}
 
-			go Ping(monitor, kp)
+			go Ping(strings.Split(key, ":")[1], monitor, kp)
 
 			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
 			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{

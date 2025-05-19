@@ -2,50 +2,9 @@ package monitor
 
 import (
 	"context"
-	"strconv"
-	"strings"
-
-	"uptime/internal/constants"
-	"uptime/internal/util"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 )
-
-func GetMonitor(ctx context.Context, rdb *redis.Client, key string) (Monitor, error) {
-	data, err := rdb.HGetAll(ctx, key).Result()
-	if err != nil {
-		return Monitor{}, err
-	}
-	if len(data) == 0 {
-		return Monitor{}, redis.Nil
-	}
-
-	interval, err := strconv.Atoi(data["interval"])
-	if err != nil {
-		interval = 60
-	}
-
-	status := MonitorStatus(data["status"])
-
-	return Monitor{
-		Id:       strings.Split(key, ":")[1],
-		Endpoint: data["endpoint"],
-		Interval: interval,
-		Status:   status,
-	}, nil
-}
-
-// todo: improve
-func LogMonitorResult(mr MonitorResult) error {
-	util.PrettyPrint(mr)
-	return nil
-}
-
-func UpdateMonitorStatus(ctx context.Context, mr MonitorResult, rdb *redis.Client) error {
-	key := constants.RedisMonitorKey + ":" + mr.Id
-	return rdb.HSet(ctx, key, "status", mr.Status.string()).Err()
-}
 
 func StoreMonitorResult(ctx context.Context, mr MonitorResult, db *pgx.Conn) error {
 	sql := `INSERT INTO monitor_results (monitor_id, status, latency_ms, response_code, error, checked_at) VALUES ($1, $2, $3, $4, $5, $6)`
@@ -55,4 +14,33 @@ func StoreMonitorResult(ctx context.Context, mr MonitorResult, db *pgx.Conn) err
 	}
 
 	return nil
+}
+
+func GetActiveMonitors(ctx context.Context, db *pgx.Conn) ([]Monitor, error) {
+	rows, err := db.Query(ctx, `
+        SELECT id, url, interval_seconds, active
+        FROM monitors
+        WHERE active = true
+    `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var monitors []Monitor
+
+	for rows.Next() {
+		var m Monitor
+		err := rows.Scan(&m.Id, &m.Endpoint, &m.Interval, &m.Active)
+		if err != nil {
+			return nil, err
+		}
+		monitors = append(monitors, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return monitors, nil
 }

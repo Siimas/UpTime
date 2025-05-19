@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"uptime/internal/util"
 	"uptime/internal/constants"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -56,17 +58,14 @@ func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, r
 		return err
 	}
 
-	if err := LogMonitorResult(monitorResult); err != nil {
-		fmt.Printf("Error logging monitor result: %s\n", err)
-		return err
-	}
+	util.PrettyPrint(monitorResult)
 
 	if err := StoreMonitorResult(ctx, monitorResult, db); err != nil {
 		fmt.Printf("Error storing monitor result: %s\n", err)
 		return err
 	}
 
-	if monitorResult.Status == StatusOffline {
+	if monitorResult.Status == StatusDown {
 		if err := UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
 			fmt.Printf("Error updating monitor status: %s\n", err)
 			return err

@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"uptime/internal/util"
 	"uptime/internal/constants"
+	"uptime/internal/models"
+	"uptime/internal/redisclient"
+	"uptime/internal/util"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgx/v5"
@@ -18,10 +21,11 @@ import (
 )
 
 func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client) {
-	err := kc.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil)
-	if err != nil {
-		fmt.Printf("Couldn't subscribe to topic: %s\n", err)
-		os.Exit(1)
+	log.Println("✅ - Monitor Results Online")
+	defer log.Println("⚠️ - Monitor Results Shutting Down")
+	
+	if err := kc.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil); err != nil {
+		log.Fatalf("Couldn't subscribe to topic: %s\n", err)
 	}
 
 	// Set up a channel for handling Ctrl-C, etc
@@ -52,7 +56,7 @@ func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rd
 }
 
 func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, rdb *redis.Client) error {
-	var monitorResult MonitorResult
+	var monitorResult models.MonitorResult
 	if err := json.Unmarshal(km.Value, &monitorResult); err != nil {
 		fmt.Printf("Error converting json to monitor result: %s\n", err)
 		return err
@@ -65,8 +69,8 @@ func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, r
 		return err
 	}
 
-	if monitorResult.Status == StatusDown {
-		if err := UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
+	if monitorResult.Status == models.StatusDown {
+		if err := redisclient.UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
 			fmt.Printf("Error updating monitor status: %s\n", err)
 			return err
 		}

@@ -3,48 +3,52 @@ package monitor
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 	"uptime/internal/constants"
+	"uptime/internal/models"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-func Ping(monitorId string, monitor MonitorCache, kp *kafka.Producer) {
+func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
 
+	var statusCode int
 	var errorMessage string
+	var status models.MonitorStatus
+
+	log.Println("Pinging: ", monitor)
 
 	start := time.Now()
 	resp, err := client.Head(monitor.Endpoint)
 	latency := time.Since(start)
 	if err != nil {
-		fmt.Printf("Error pinging url: %s \n%s", monitor.Endpoint, err) // todo: improve
+		fmt.Printf("Error pinging url: %s \n%s", monitor.Endpoint, err)
 		errorMessage = err.Error()
-	}
-	defer func(e error) {
-		if e != nil {
-			resp.Body.Close()
-		}
-	}(err)
-
-	fmt.Printf("Ping successful: %s (%d)\n", monitor.Endpoint, resp.StatusCode)
-
-	var status MonitorStatus
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		status = StatusUp
 	} else {
-		status = StatusDown
+		defer resp.Body.Close()
+
+		statusCode = resp.StatusCode
+
+		fmt.Printf("Ping successful: %s (%d)\n", monitor.Endpoint, statusCode)
+
+		if statusCode >= 200 && statusCode < 400 {
+			status = models.StatusUp
+		} else {
+			status = models.StatusDown
+		}
 	}
 
-	monitorResult := MonitorResult{
+	monitorResult := models.MonitorResult{
 		Id:      monitorId,
 		Date:    time.Now().Format("2006-01-02 15:04:05-07"),
 		Latency: latency.Milliseconds(),
 		Status:  status,
-		Code:    resp.StatusCode,
+		Code:    statusCode,
 		Error:   errorMessage,
 	}
 

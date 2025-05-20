@@ -1,0 +1,70 @@
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+	"uptime/internal/config"
+	"uptime/internal/http"
+	"uptime/internal/kafka"
+	"uptime/internal/monitor"
+	"uptime/internal/postgres"
+	"uptime/internal/redisclient"
+)
+
+func main() {
+	log.Println("Uptime service is starting...")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Graceful shutdown handler
+	go handleShutdown(cancel)
+
+	config := config.Load()
+
+	db := postgres.NewConnection(ctx, config.PostgresURL)
+	defer db.Close(context.Background())
+
+	redisClient := redisclient.NewClient(config.RedisURL)
+	defer redisClient.Close()
+
+	kafkaConsumer := kafka.NewConsumer(config.KafkaBroker, config.KafkaGroupId)
+	defer kafkaConsumer.Close()
+
+	kafkaProducer := kafka.NewProducer(config.KafkaBroker)
+	defer kafkaProducer.Close()
+
+	cacheSeedDone := make(chan bool)
+	go monitor.RunMonitorFlusher(ctx, db, kafkaConsumer, redisClient, cacheSeedDone)
+
+	<-cacheSeedDone
+
+	go monitor.RunMonitorResults(ctx, db, kafkaConsumer, redisClient)
+
+	go monitor.RunMonitorRunner(ctx, redisClient, kafkaProducer)
+
+	go http.StartServer(ctx, config.HTTPServerAddr)
+
+	log.Println("Uptime service is running...")
+
+	// Block main until context is cancelled
+	<-ctx.Done()
+	log.Println("Uptime service shutting down.")
+}
+
+// handleShutdown cancels the context on SIGINT/SIGTERM
+func handleShutdown(cancel context.CancelFunc) {
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sigchan
+	log.Println("Shutdown signal received.")
+	cancel()
+
+	// Give time for cleanup
+	time.Sleep(1 * time.Second)
+}

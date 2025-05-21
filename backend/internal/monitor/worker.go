@@ -8,7 +8,7 @@ import (
 	"uptime/internal/constants"
 	"uptime/internal/models"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
@@ -29,7 +29,7 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 	start := time.Now()
 	resp, err := client.Head(monitor.Endpoint)
 	latency := time.Since(start)
-	
+
 	if err != nil {
 		log.Printf("%s --> 🔴 Error: %s\n", monitor.Endpoint, err)
 		errorMessage = err.Error()

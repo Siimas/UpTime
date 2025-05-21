@@ -3,13 +3,14 @@ package postgres
 import (
 	"context"
 	"log"
+	"uptime/internal/config"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewConnection(ctx context.Context, url string) *pgx.Conn {
-	con, err := pgx.Connect(context.Background(), url)
+func NewConnection(ctx context.Context) *pgx.Conn {
+	con, err := pgx.Connect(context.Background(), config.GetEnv("POSTGRES_URL"))
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}

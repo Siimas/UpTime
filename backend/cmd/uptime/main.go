@@ -26,7 +26,7 @@ func main() {
 
 	config := config.Load()
 
-	db := postgres.NewConnection(ctx, config.PostgresURL)
+	db := postgres.NewConnection(ctx)
 	defer db.Close(context.Background())
 
 	pooldb := postgres.NewPoolConnection(ctx, config.PostgresURL)

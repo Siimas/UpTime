@@ -10,7 +10,7 @@ import (
 	"uptime/internal/constants"
 	"uptime/internal/redisclient"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/redis/go-redis/v9"
 )
 

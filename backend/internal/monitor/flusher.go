@@ -13,7 +13,7 @@ import (
 	"uptime/internal/redisclient"
 	"uptime/internal/util"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 )
@@ -43,7 +43,7 @@ func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rd
 			ev, err := kc.ReadMessage(100 * time.Millisecond)
 			if err != nil {
 				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					log.Printf("Kafka error: %s\n", kafkaErr)
+					log.Printf("-Kafka error: %s\n", kafkaErr)
 				}
 				continue
 			}
@@ -79,5 +79,3 @@ func handleMonitorFlusher(ctx context.Context, km *kafka.Message, rdb *redis.Cli
 
 	return nil
 }
-
-

@@ -9,13 +9,17 @@ import (
 )
 
 func StartServer(ctx context.Context, addr string) {
-	mux := http.NewServeMux()
+	router := http.NewServeMux()
 
-	mux.HandleFunc("/test", handler.Test)
+	router.HandleFunc("GET /monitor", handler.GetMonitors)
+	router.HandleFunc("GET /monitor/{monitorId}", handler.GetSingleMonitor)
+	router.HandleFunc("POST /monitor", handler.CreateMonitor)
+	router.HandleFunc("PUT /monitor", handler.UpdateMonitor)
+	router.HandleFunc("DELETE /monitor", handler.DeletMonitor)
 
 	server := &http.Server{
 		Addr:           addr,
-		Handler:        mux,
+		Handler:        router,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

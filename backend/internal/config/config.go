@@ -10,8 +10,6 @@ import (
 type Config struct {
 	RedisURL       string
 	PostgresURL    string
-	KafkaBroker    string
-	KafkaGroupId   string
 	HTTPServerAddr string
 }
 
@@ -26,8 +24,6 @@ func Load() *Config {
 	return &Config{
 		PostgresURL:    GetEnv("POSTGRES_URL"),
 		RedisURL:       GetEnv("REDIS_URL"),
-		KafkaBroker:    GetEnv("KAFKA_BROKER"),
-		KafkaGroupId:   GetEnv("KAFKA_GROUP_ID"),
 		HTTPServerAddr: GetEnv("HTTP_SERVER_ADDRESS"),
 	}
 }

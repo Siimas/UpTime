@@ -2,13 +2,14 @@ package kafka
 
 import (
 	"log"
+	"uptime/internal/config"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-func NewProducer(broker string) *kafka.Producer {
+func NewProducer() *kafka.Producer {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": broker,
+		"bootstrap.servers": config.GetEnv("KAFKA_BOOTSRAP_SERVERS"),
 		"acks":              "all",
 	})
 

@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -13,6 +12,10 @@ import (
 )
 
 func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
+	if monitor.Endpoint == "" {
+		log.Println("🚨 Empty Endpoint! ")
+		return
+	}
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
@@ -55,7 +58,7 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 
 	messageData, err := json.Marshal(monitorResult)
 	if err != nil {
-		fmt.Println("🚨 Error marshaling data:", err)
+		log.Println("🚨 Error marshaling data:", err)
 		return
 	}
 

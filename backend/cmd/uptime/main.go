@@ -35,10 +35,10 @@ func main() {
 	redisClient := redisclient.NewClient(config.RedisURL)
 	defer redisClient.Close()
 
-	kafkaConsumer := kafka.NewConsumer(config.KafkaBroker, config.KafkaGroupId)
+	kafkaConsumer := kafka.NewConsumer()
 	defer kafkaConsumer.Close()
 
-	kafkaProducer := kafka.NewProducer(config.KafkaBroker)
+	kafkaProducer := kafka.NewProducer()
 	defer kafkaProducer.Close()
 	
 	if err := redisclient.SeedRedisFromPostgres(ctx, db, redisClient); err != nil {

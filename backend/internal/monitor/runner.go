@@ -27,18 +27,20 @@ func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *kafka.Producer
 			Count: 1000,
 		}).Result()
 		if err != nil {
-			log.Printf("failed to fetch due monitors: %v", err)
+			log.Printf("Failed to fetch due monitors: %v", err)
 			continue
 		}
 
 		for _, key := range monitorIDs {
 			monitor, err := redisclient.GetMonitor(ctx, rdb, key)
 			if err != nil {
-				log.Printf("error retrieving monitor %s: %v", key, err)
+				log.Printf("Error retrieving monitor %s: %v", key, err)
 				continue
 			}
 
-			go Ping(strings.Split(key, ":")[1], monitor, kp)
+			monitorId := strings.Split(key, ":")[1]
+
+			go Ping(monitorId, monitor, kp)
 
 			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
 			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{

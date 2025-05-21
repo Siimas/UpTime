@@ -29,6 +29,9 @@ func main() {
 	db := postgres.NewConnection(ctx, config.PostgresURL)
 	defer db.Close(context.Background())
 
+	pooldb := postgres.NewPoolConnection(ctx, config.PostgresURL)
+	defer pooldb.Close()
+
 	redisClient := redisclient.NewClient(config.RedisURL)
 	defer redisClient.Close()
 
@@ -37,13 +40,14 @@ func main() {
 
 	kafkaProducer := kafka.NewProducer(config.KafkaBroker)
 	defer kafkaProducer.Close()
+	
+	if err := redisclient.SeedRedisFromPostgres(ctx, db, redisClient); err != nil {
+		log.Println("🚨 Error starting flusher: " + err.Error())
+	}
 
-	cacheSeedDone := make(chan bool)
-	go monitor.RunMonitorFlusher(ctx, db, kafkaConsumer, redisClient, cacheSeedDone)
+	go monitor.RunMonitorFlusher(ctx, db, kafkaConsumer, redisClient)
 
-	<-cacheSeedDone
-
-	go monitor.RunMonitorResults(ctx, db, kafkaConsumer, redisClient)
+	go monitor.RunMonitorResults(ctx, pooldb, kafkaConsumer, redisClient)
 
 	go monitor.RunMonitorRunner(ctx, redisClient, kafkaProducer)
 

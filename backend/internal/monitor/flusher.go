@@ -18,19 +18,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client, cacheSeedDone chan bool) {
+func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client) {
 	log.Println("✅ - Monitor Flusher Online")
 	defer log.Println("⚠️ - Monitor Flusher Shutting Down")
 
-	if err := redisclient.SeedRedisFromPostgres(ctx, db, rdb); err != nil {
-		log.Println("Error starting flusher: " + err.Error())
-	}
-
-	cacheSeedDone <- true
-
 	err := kc.SubscribeTopics([]string{constants.KafkaMonitorActionTopic}, nil)
 	if err != nil {
-		log.Printf("Couldn't subscribe to topic: %s\n", err)
+		log.Printf("🚨 Couldn't subscribe to topic: %s\n", err)
 		os.Exit(1)
 	}
 

@@ -13,17 +13,16 @@ import (
 	"uptime/internal/constants"
 	"uptime/internal/models"
 	"uptime/internal/redisclient"
-	"uptime/internal/util"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client) {
+func RunMonitorResults(ctx context.Context, pooldb *pgxpool.Pool, kc *kafka.Consumer, rdb *redis.Client) {
 	log.Println("✅ - Monitor Results Online")
 	defer log.Println("⚠️ - Monitor Results Shutting Down")
-	
+
 	if err := kc.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil); err != nil {
 		log.Fatalf("Couldn't subscribe to topic: %s\n", err)
 	}
@@ -46,35 +45,28 @@ func RunMonitorResults(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rd
 					fmt.Printf("Kafka error: %s\n", kafkaErr)
 				}
 				continue
-			}			
-			
-			go handleMonitorResult(ctx, ev, db, rdb)
+			}
+
+			go handleMonitorResult(ctx, ev, pooldb, rdb)
 		}
 	}
 
 	kc.Close()
 }
 
-func handleMonitorResult(ctx context.Context, km *kafka.Message, db *pgx.Conn, rdb *redis.Client) error {
+func handleMonitorResult(ctx context.Context, km *kafka.Message, pooldb *pgxpool.Pool, rdb *redis.Client) {
 	var monitorResult models.MonitorResult
 	if err := json.Unmarshal(km.Value, &monitorResult); err != nil {
-		fmt.Printf("Error converting json to monitor result: %s\n", err)
-		return err
+		fmt.Printf("🚨 Error converting json to monitor result: %s\n", err)
+		return
 	}
 
-	util.PrettyPrint(monitorResult)
-
-	if err := StoreMonitorResult(ctx, monitorResult, db); err != nil {
-		fmt.Printf("Error storing monitor result: %s\n", err)
-		return err
+	if err := StoreMonitorResult(ctx, monitorResult, pooldb); err != nil {
+		fmt.Printf("🚨 Error storing monitor result (postgres): %s\n", err)
 	}
 
-	if monitorResult.Status == models.StatusDown {
-		if err := redisclient.UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
-			fmt.Printf("Error updating monitor status: %s\n", err)
-			return err
-		}
+	if err := redisclient.UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
+		fmt.Printf("🚨 Error updating monitor status: %s\n", err)
 	}
 
-	return nil
 }

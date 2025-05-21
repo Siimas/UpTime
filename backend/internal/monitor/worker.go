@@ -21,20 +21,21 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 	var errorMessage string
 	var status models.MonitorStatus
 
-	log.Println("Pinging: ", monitor)
+	log.Printf("📡 Pinging: %s", monitor.Endpoint)
 
 	start := time.Now()
 	resp, err := client.Head(monitor.Endpoint)
 	latency := time.Since(start)
+	
 	if err != nil {
-		fmt.Printf("Error pinging url: %s \n%s", monitor.Endpoint, err)
+		log.Printf("%s --> 🔴 Error: %s\n", monitor.Endpoint, err)
 		errorMessage = err.Error()
 	} else {
 		defer resp.Body.Close()
 
 		statusCode = resp.StatusCode
 
-		fmt.Printf("Ping successful: %s (%d)\n", monitor.Endpoint, statusCode)
+		log.Printf("%s --> 🟢 Ping successful (%d)", monitor.Endpoint, statusCode)
 
 		if statusCode >= 200 && statusCode < 400 {
 			status = models.StatusUp
@@ -54,7 +55,7 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 
 	messageData, err := json.Marshal(monitorResult)
 	if err != nil {
-		fmt.Println("Error marshaling data:", err)
+		fmt.Println("🚨 Error marshaling data:", err)
 		return
 	}
 

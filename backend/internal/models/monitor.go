@@ -60,7 +60,7 @@ type MonitorCache struct {
 }
 
 func (m MonitorCache) String() string {
-	return fmt.Sprintf("Monitor Cache: { Endpoint: %s, Status: %s, Interval: %v, }", m.Endpoint, m.Status.String(), m.Interval)
+	return fmt.Sprintf("🖥️ MonitorCache: { Endpoint: %s, Status: %s, Interval: %v }", m.Endpoint, m.Status.String(), m.Interval)
 }
 
 type MonitorResult struct {

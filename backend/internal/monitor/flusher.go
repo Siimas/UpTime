@@ -12,7 +12,6 @@ import (
 	"uptime/internal/constants"
 	"uptime/internal/events"
 	"uptime/internal/models"
-	"uptime/internal/util"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jackc/pgx/v5"
@@ -63,19 +62,19 @@ func handleMonitorFlusher(ctx context.Context, km *kafka.Message, rdb *redis.Cli
 		return err
 	}
 
-	util.PrettyPrint(monitorEvent)
-
 	switch monitorEvent.Action {
+	case models.MonitorCreate:
+		if err := cache.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
+			log.Printf("Error %s monitor (%s): %s\n", monitorEvent.Action.String(), monitorEvent.Monitor.Id, err)
+			return err
+		}
 	case models.MonitorDelete:
 		if err := cache.DeleteMonitor(ctx, monitorEvent.Monitor.Id, rdb); err != nil {
 			log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.Monitor.Id, err)
 			return err
 		}
 	default:
-		if err := cache.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
-			log.Printf("Error %s monitor (%s): %s\n", monitorEvent.Action.String(), monitorEvent.Monitor.Id, err)
-			return err
-		}
+
 	}
 
 	return nil

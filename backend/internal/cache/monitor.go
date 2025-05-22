@@ -82,6 +82,7 @@ func SeedRedisFromPostgres(ctx context.Context, db *pgx.Conn, rdb *redis.Client)
 }
 
 func ScheduleMonitor(ctx context.Context, mr models.Monitor, rdb *redis.Client) error {
+	// todo: check if not valid
 	key := constants.RedisMonitorKey + ":" + mr.Id
 
 	fields := map[string]any{

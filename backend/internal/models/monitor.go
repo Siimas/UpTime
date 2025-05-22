@@ -40,7 +40,6 @@ func (s MonitorAction) IsValid() bool {
 	}
 	return false
 }
-
 type Monitor struct {
 	Id       string `json:"id"`
 	Endpoint string `json:"endpoint"`

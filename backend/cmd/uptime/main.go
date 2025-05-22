@@ -9,6 +9,8 @@ import (
 	"time"
 	"uptime/internal/config"
 	"uptime/internal/http"
+	"uptime/internal/util/color"
+
 	"uptime/internal/kafka"
 	"uptime/internal/monitor"
 	"uptime/internal/postgres"
@@ -16,6 +18,13 @@ import (
 )
 
 func main() {
+	log.Println(color.Colorize(color.Blue, `
+  _   _     _____ _           
+ | | | |_ _|_   _(_)_ __  ___ 
+ | |_| | '_ \| | | | '  \/ -_)
+  \___/| .__/|_| |_|_|_|_\___|
+       |_|                    
+	`))
 	log.Println("Uptime service is starting...")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -40,7 +49,7 @@ func main() {
 
 	kafkaProducer := kafka.NewProducer()
 	defer kafkaProducer.Close()
-	
+
 	if err := redisclient.SeedRedisFromPostgres(ctx, db, redisClient); err != nil {
 		log.Println("🚨 Error starting flusher: " + err.Error())
 	}
@@ -52,8 +61,6 @@ func main() {
 	go monitor.RunMonitorRunner(ctx, redisClient, kafkaProducer)
 
 	go http.StartServer(ctx, config.HTTPServerAddr)
-
-	log.Println("Uptime service is running...")
 
 	// Block main until context is cancelled
 	<-ctx.Done()

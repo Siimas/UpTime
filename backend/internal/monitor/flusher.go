@@ -8,9 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"uptime/internal/cache"
 	"uptime/internal/constants"
+	"uptime/internal/events"
 	"uptime/internal/models"
-	"uptime/internal/redisclient"
 	"uptime/internal/util"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -18,11 +19,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rdb *redis.Client) {
+func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *events.KafkaConsumer, rdb *redis.Client) {
 	log.Println("✅ - Monitor Flusher Online")
 	defer log.Println("⚠️ - Monitor Flusher Shutting Down")
 
-	err := kc.SubscribeTopics([]string{constants.KafkaMonitorActionTopic}, nil)
+	err := kc.Consumer.SubscribeTopics([]string{constants.KafkaMonitorScheduleTopic}, nil)
 	if err != nil {
 		log.Printf("🚨 Couldn't subscribe to topic: %s\n", err)
 		os.Exit(1)
@@ -40,10 +41,10 @@ func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rd
 			log.Printf("Caught signal %v: terminating\n", sig)
 			run = false
 		default:
-			ev, err := kc.ReadMessage(100 * time.Millisecond)
+			ev, err := kc.Consumer.ReadMessage(100 * time.Millisecond)
 			if err != nil {
 				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					log.Printf("-Kafka error: %s\n", kafkaErr)
+					log.Printf("Kafka error: %s\n", kafkaErr)
 				}
 				continue
 			}
@@ -52,7 +53,7 @@ func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *kafka.Consumer, rd
 		}
 	}
 
-	kc.Close()
+	kc.Consumer.Close()
 }
 
 func handleMonitorFlusher(ctx context.Context, km *kafka.Message, rdb *redis.Client) error {
@@ -66,12 +67,12 @@ func handleMonitorFlusher(ctx context.Context, km *kafka.Message, rdb *redis.Cli
 
 	switch monitorEvent.Action {
 	case models.MonitorDelete:
-		if err := redisclient.DeleteMonitor(ctx, monitorEvent.Monitor.Id, rdb); err != nil {
+		if err := cache.DeleteMonitor(ctx, monitorEvent.Monitor.Id, rdb); err != nil {
 			log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.Monitor.Id, err)
 			return err
 		}
 	default:
-		if err := redisclient.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
+		if err := cache.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
 			log.Printf("Error %s monitor (%s): %s\n", monitorEvent.Action.String(), monitorEvent.Monitor.Id, err)
 			return err
 		}

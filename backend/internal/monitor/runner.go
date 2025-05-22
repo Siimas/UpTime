@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"uptime/internal/cache"
 	"uptime/internal/constants"
-	"uptime/internal/redisclient"
+	"uptime/internal/events"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *kafka.Producer) {
+func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
 	log.Println("✅ - Monitor Runner Online")
 	defer log.Println("⚠️ - Monitor Runner Shutting Down")
 
@@ -32,7 +32,7 @@ func RunMonitorRunner(ctx context.Context, rdb *redis.Client, kp *kafka.Producer
 		}
 
 		for _, key := range monitorIDs {
-			monitor, err := redisclient.GetMonitor(ctx, rdb, key)
+			monitor, err := cache.GetMonitor(ctx, rdb, key)
 			if err != nil {
 				log.Printf("Error retrieving monitor %s: %v", key, err)
 				continue

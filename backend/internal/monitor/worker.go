@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"time"
 	"uptime/internal/constants"
+	"uptime/internal/events"
 	"uptime/internal/models"
-
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
+func Ping(monitorId string, monitor models.MonitorCache, kp *events.KafkaProducer) {
 	if monitor.Endpoint == "" {
 		log.Println("🚨 Empty Endpoint! ")
 		return
@@ -64,9 +63,5 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *kafka.Producer) {
 
 	topic := constants.KafkaMonitorResultsTopic
 	key := constants.RedisMonitorKey + ":" + monitorId
-	kp.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key),
-		Value:          []byte(messageData),
-	}, nil)
+	kp.ProduceMessage(topic, key, string(messageData))
 }

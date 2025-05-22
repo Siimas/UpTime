@@ -11,10 +11,10 @@ import (
 	"uptime/internal/http"
 	"uptime/internal/util/color"
 
-	"uptime/internal/kafka"
+	"uptime/internal/cache"
+	"uptime/internal/events"
 	"uptime/internal/monitor"
 	"uptime/internal/postgres"
-	"uptime/internal/redisclient"
 )
 
 func main() {
@@ -41,16 +41,16 @@ func main() {
 	pooldb := postgres.NewPoolConnection(ctx, config.PostgresURL)
 	defer pooldb.Close()
 
-	redisClient := redisclient.NewClient(config.RedisURL)
+	redisClient := cache.NewClient(config.RedisURL)
 	defer redisClient.Close()
 
-	kafkaConsumer := kafka.NewConsumer()
-	defer kafkaConsumer.Close()
+	kafkaConsumer := events.NewLocalConsumer()
+	defer kafkaConsumer.Consumer.Close()
 
-	kafkaProducer := kafka.NewProducer()
-	defer kafkaProducer.Close()
+	kafkaProducer := events.NewLocalProducer()
+	defer kafkaProducer.Producer.Close()
 
-	if err := redisclient.SeedRedisFromPostgres(ctx, db, redisClient); err != nil {
+	if err := cache.SeedRedisFromPostgres(ctx, db, redisClient); err != nil {
 		log.Println("🚨 Error starting flusher: " + err.Error())
 	}
 

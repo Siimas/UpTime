@@ -1,4 +1,4 @@
-package kafka
+package events
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 // todo: work on this
@@ -37,7 +37,7 @@ func SubscribeTopic(
 			ev, err := kc.ReadMessage(100 * time.Millisecond)
 			if err != nil {
 				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					fmt.Printf("Kafka error: %s\n", kafkaErr)
+					fmt.Printf("⚠️ Kafka error: %s\n", kafkaErr)
 				}
 				continue
 			}

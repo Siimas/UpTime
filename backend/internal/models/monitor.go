@@ -1,4 +1,6 @@
-package monitor
+package models
+
+import "fmt"
 
 type MonitorStatus string
 
@@ -7,7 +9,7 @@ const (
 	StatusDown MonitorStatus = "Down"
 )
 
-func (s MonitorStatus) string() string {
+func (s MonitorStatus) String() string {
 	return string(s)
 }
 
@@ -27,7 +29,7 @@ const (
 	MonitorUpdate MonitorAction = "Update"
 )
 
-func (s MonitorAction) string() string {
+func (s MonitorAction) String() string {
 	return string(s)
 }
 
@@ -38,7 +40,6 @@ func (s MonitorAction) IsValid() bool {
 	}
 	return false
 }
-
 type Monitor struct {
 	Id       string `json:"id"`
 	Endpoint string `json:"endpoint"`
@@ -47,14 +48,18 @@ type Monitor struct {
 }
 
 type MonitorEvent struct {
-	Action  MonitorAction  `json:"action"`
-	Monitor Monitor `json:"monitor"`
+	Action  MonitorAction `json:"action"`
+	Monitor Monitor       `json:"monitor"`
 }
 
 type MonitorCache struct {
 	Endpoint string        `json:"endpoint"`
 	Interval int           `json:"interval"`
 	Status   MonitorStatus `json:"status"`
+}
+
+func (m MonitorCache) String() string {
+	return fmt.Sprintf("🖥️ MonitorCache: { Endpoint: %s, Status: %s, Interval: %v }", m.Endpoint, m.Status.String(), m.Interval)
 }
 
 type MonitorResult struct {

@@ -31,7 +31,7 @@ func (kp *KafkaProducer) ProduceMessage(topic, key, value string) error {
 		log.Fatalf("delivery failed: %v", m.TopicPartition.Error)
 	}
 
-	log.Println("✅ delivered message to", m.TopicPartition)
+	// log.Println("✅ delivered message to", m.TopicPartition)
 	return nil
 }
 

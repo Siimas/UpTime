@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"log"
+	"time"
 	"uptime/internal/config"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -12,25 +13,32 @@ type KafkaConsumer struct {
 	Consumer *kafka.Consumer
 }
 
-// todo: add possiblity to add handler functions for topics
-func (kc *KafkaConsumer) Consume(ctx context.Context) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				log.Println("🔴 Consumer stopped")
-				return
-			default:
-				ev := kc.Consumer.Poll(100)
-				switch e := ev.(type) {
-				case *kafka.Message:
-					log.Printf("⬇️ Received message: %s = %s\n", string(e.Key), string(e.Value))
-				case kafka.Error:
-					log.Printf("⚠️ Consumer Kafka error: %v\n", e)
+type HandlerFunc func(ev *kafka.Message)
+
+func (kc *KafkaConsumer) Subscribe(ctx context.Context, topics []string, handler HandlerFunc) {
+	defer kc.Consumer.Close()
+
+	if err := kc.Consumer.SubscribeTopics(topics, nil); err != nil {
+		log.Fatalf("⚠️ Error Subscribing to topic: %s\n", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("🔴 Consumer stopped")
+			return
+		default:
+			ev, err := kc.Consumer.ReadMessage(100 * time.Millisecond)
+			if err != nil {
+				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
+					log.Fatalf("⚠️ Logger Kafka error: %s\n", kafkaErr)
 				}
+				continue
 			}
+
+			handler(ev)
 		}
-	}()
+	}
 }
 
 func NewCloudConsumer() *KafkaConsumer {

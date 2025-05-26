@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"uptime/internal/cache"
 	"uptime/internal/constants"
@@ -21,38 +17,37 @@ import (
 )
 
 func Run(ctx context.Context, pooldb *pgxpool.Pool, kc *events.KafkaConsumer, rdb *redis.Client) {
-	log.Println("✅ - Logger Online")
 	defer log.Println("⚠️ - Logger Shutting Down")
 
-	if err := kc.Consumer.SubscribeTopics([]string{constants.KafkaMonitorResultsTopic}, nil); err != nil {
-		log.Fatalf("Couldn't subscribe to topic: %s\n", err)
+	msgChan := make(chan *kafka.Message, 1000)
+
+	workerCount := 2
+	for i := range workerCount {
+		go loggerWorker(i, ctx, msgChan, pooldb, rdb)
 	}
 
-	// Set up a channel for handling Ctrl-C, etc
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+	log.Println("✅ - Logger Online")
 
-	// Process messages
-	run := true
-	for run {
+	kc.Subscribe(ctx, []string{constants.KafkaMonitorResultsTopic}, func(ev *kafka.Message) {
 		select {
-		case sig := <-sigchan:
-			log.Printf("Caught signal %v: terminating\n", sig)
-			run = false
-		default:
-			ev, err := kc.Consumer.ReadMessage(100 * time.Millisecond)
-			if err != nil {
-				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					log.Fatalf("⚠️ Logger Kafka error: %s\n", kafkaErr)
-				}
-				continue
-			}
+		case msgChan <- ev:
+		case <-ctx.Done():
+		}
+	})
+}
 
-			go handleMonitorResult(ctx, ev, pooldb, rdb)
+func loggerWorker(id int, ctx context.Context, msgChan <-chan *kafka.Message, pooldb *pgxpool.Pool, rdb *redis.Client) {
+	log.Printf("👷 Logger Worker %d started", id)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("👷 Logger Worker %d shutting down", id)
+			return
+		case msg := <-msgChan:
+			log.Printf("👷 Logger Worker %d - 📋 Logging Monitor with key %s", id, msg.Key)
+			handleMonitorResult(ctx, msg, pooldb, rdb)
 		}
 	}
-
-	kc.Consumer.Close()
 }
 
 func handleMonitorResult(ctx context.Context, km *kafka.Message, pooldb *pgxpool.Pool, rdb *redis.Client) {
@@ -62,14 +57,11 @@ func handleMonitorResult(ctx context.Context, km *kafka.Message, pooldb *pgxpool
 		return
 	}
 
-	log.Println("📋 Logging Monitor:", monitorResult)
-
-	if err := postgres.StoreMonitorResult(ctx, monitorResult, pooldb); err != nil {
-		log.Printf("🚨 Error storing monitor result (postgres): %s\n", err)
-	}
-
 	if err := cache.UpdateMonitorStatus(ctx, monitorResult, rdb); err != nil {
 		log.Printf("🚨 Error updating monitor status: %s\n", err)
 	}
 
+	if err := postgres.StoreMonitorResult(ctx, monitorResult, pooldb); err != nil {
+		log.Printf("🚨 Error storing monitor result (postgres): %s\n", err)
+	}
 }

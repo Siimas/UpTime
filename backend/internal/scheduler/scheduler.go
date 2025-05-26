@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 	"uptime/internal/cache"
 	"uptime/internal/constants"
 	"uptime/internal/events"
@@ -19,42 +15,13 @@ import (
 )
 
 func Run(ctx context.Context, db *pgx.Conn, kc *events.KafkaConsumer, rdb *redis.Client) {
-	log.Println("✅ - Scheduler Online")
 	defer log.Println("⚠️ - Scheduler Shutting Down")
-	ctx.Done()
+	log.Println("✅ - Scheduler Online")
 
-	err := kc.Consumer.SubscribeTopics([]string{constants.KafkaMonitorScheduleTopic}, nil)
-	if err != nil {
-		log.Printf("🚨 Couldn't subscribe to topic: %s\n", err)
-		os.Exit(1)
-	}
+	kc.Subscribe(ctx, []string{constants.KafkaMonitorScheduleTopic}, func(ev *kafka.Message) {
+		handleMonitorScheduler(ctx, ev, rdb)
+	})
 
-	// Set up a channel for handling Ctrl-C, etc
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Process messages
-	run := true
-	for run {
-		select {
-		case sig := <-sigchan:
-			log.Printf("Caught signal %v: terminating\n", sig)
-			run = false
-		default:
-			ev, err := kc.Consumer.ReadMessage(100 * time.Millisecond)
-			if err != nil {
-				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					log.Printf("⚠️ Scheduler Kafka error: %s\n", kafkaErr)
-					os.Exit(1)
-				}
-				continue
-			}
-
-			go handleMonitorScheduler(ctx, ev, rdb)
-		}
-	}
-
-	kc.Consumer.Close()
 }
 
 func handleMonitorScheduler(ctx context.Context, km *kafka.Message, rdb *redis.Client) error {

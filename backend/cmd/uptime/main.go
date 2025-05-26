@@ -46,8 +46,11 @@ func main() {
 	redisClient := cache.NewClient(config.RedisURL)
 	defer redisClient.Close()
 
-	kafkaConsumer := events.NewLocalConsumer()
-	defer kafkaConsumer.Consumer.Close()
+	loggerConsumer := events.NewLocalConsumer()
+	defer loggerConsumer.Consumer.Close()
+
+	schedulerConsumer := events.NewLocalConsumer()
+	defer schedulerConsumer.Consumer.Close()
 
 	kafkaProducer := events.NewLocalProducer()
 	defer kafkaProducer.Producer.Close()
@@ -56,11 +59,11 @@ func main() {
 		log.Println("🚨 Error starting flusher: " + err.Error())
 	}
 
-	go logger.Run(ctx, pooldb, kafkaConsumer, redisClient)
+	go logger.Run(ctx, pooldb, loggerConsumer, redisClient)
 
 	go worker.Run(ctx, redisClient, kafkaProducer)
 
-	go scheduler.Run(ctx, db, kafkaConsumer, redisClient)
+	go scheduler.Run(ctx, db, schedulerConsumer, redisClient)
 
 	go http.StartServer(ctx, config.HTTPServerAddr)
 

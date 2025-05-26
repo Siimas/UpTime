@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"log"
 	"uptime/internal/config"
 
@@ -11,16 +12,20 @@ type KafkaProducer struct {
 	Producer *kafka.Producer
 }
 
-func (kp *KafkaProducer) ProduceMessage(topic, key, value string) error {
+func (kp *KafkaProducer) ProduceMessage(topic string, key string, value any) error {
 	deliveryChan := make(chan kafka.Event)
 
-	err := kp.Producer.Produce(&kafka.Message{
+	data, err := json.Marshal(value)
+	if err != nil {
+		log.Println("🚨 Error marshaling data:", err)
+		return err
+	}
+
+	if err = kp.Producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            []byte(key),
-		Value:          []byte(value),
-	}, deliveryChan)
-
-	if err != nil {
+		Value:          data,
+	}, deliveryChan); err != nil {
 		return err
 	}
 

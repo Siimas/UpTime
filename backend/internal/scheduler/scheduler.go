@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"uptime/internal/cache"
 	"uptime/internal/constants"
 	"uptime/internal/events"
 	"uptime/internal/models"
@@ -31,17 +30,19 @@ func handleMonitorScheduler(ctx context.Context, km *kafka.Message, rdb *redis.C
 		return err
 	}
 
+	log.Println("🔄 Scheduling Monitor: ", monitorEvent.Action, monitorEvent.MonitorId)
+
 	switch monitorEvent.Action {
 	case models.MonitorCreate:
-		if err := cache.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
-			log.Printf("Error %s monitor (%s): %s\n", monitorEvent.Action.String(), monitorEvent.Monitor.Id, err)
-			return err
-		}
+		// if err := cache.ScheduleMonitor(ctx, monitorEvent.Monitor, rdb); err != nil {
+		// 	log.Printf("Error %s monitor (%s): %s\n", monitorEvent.Action.String(), monitorEvent.Monitor.Id, err)
+		// 	return err
+		// }
 	case models.MonitorDelete:
-		if err := cache.DeleteMonitor(ctx, monitorEvent.Monitor.Id, rdb); err != nil {
-			log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.Monitor.Id, err)
-			return err
-		}
+		// if err := cache.DeleteMonitor(ctx, monitorEvent.Monitor.Id, rdb); err != nil {
+		// 	log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.Monitor.Id, err)
+		// 	return err
+		// }
 	default:
 
 	}

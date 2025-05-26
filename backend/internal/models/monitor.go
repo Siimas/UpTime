@@ -40,6 +40,7 @@ func (s MonitorAction) IsValid() bool {
 	}
 	return false
 }
+
 type Monitor struct {
 	Id       string `json:"id"`
 	Endpoint string `json:"endpoint"`
@@ -48,8 +49,8 @@ type Monitor struct {
 }
 
 type MonitorEvent struct {
-	Action  MonitorAction `json:"action"`
-	Monitor Monitor       `json:"monitor"`
+	Action    MonitorAction `json:"action"`
+	MonitorId string        `json:"monitorId"`
 }
 
 type MonitorCache struct {

@@ -1,18 +1,18 @@
-package handler
+package http
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"uptime/internal/constants"
 	"uptime/internal/models"
 	"uptime/internal/postgres"
 )
 
-func GetAllMonitors(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGetAllMonitors(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	db := postgres.NewConnection(ctx)
 
-	monitors, err := postgres.GetAllMonitors(ctx, db)
+	monitors, err := postgres.GetAllMonitors(ctx, s.PostgresDB)
 	if err != nil {
 		log.Printf("🔌 API - 🔴 Failed to fetch monitors: %v\n", err)
 		http.Error(w, "Failed to fetch monitors", http.StatusInternalServerError)
@@ -31,12 +31,11 @@ func GetAllMonitors(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(response)
 }
 
-func GetSingleMonitor(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGetSingleMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	db := postgres.NewConnection(ctx)
 	monitorId := r.PathValue("monitorId")
 
-	monitor, err := postgres.GetSingleMonitor(ctx, db, monitorId)
+	monitor, err := postgres.GetSingleMonitor(ctx, s.PostgresDB, monitorId)
 	if err != nil {
 		log.Printf("🔌 API - 🔴 Failed to fetch monitor: %v\n", err)
 		http.Error(w, "Failed to fetch monitor", http.StatusNotFound)
@@ -55,9 +54,10 @@ func GetSingleMonitor(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(response)
 }
 
-func CreateMonitor(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCreateMonitor(w http.ResponseWriter, r *http.Request) {
+	log.Println("🙈 HERE")
+
 	ctx := r.Context()
-	db := postgres.NewConnection(ctx)
 
 	var monitor models.MonitorCreateDTO
 
@@ -67,21 +67,35 @@ func CreateMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := postgres.CreateMonitor(ctx, db, monitor)
+	monitorId, err := postgres.CreateMonitor(ctx, s.PostgresDB, monitor)
 	if err != nil {
 		log.Printf("🔌 API - 🔴 Failed to create monitor: %v\n", err)
 		http.Error(w, "Failed to create monitor", http.StatusInternalServerError)
 		return
 	}
 
+	if monitor.Active {
+		if err := s.kafkaProducer.ProduceMessage(
+			constants.KafkaMonitorScheduleTopic,
+			monitorId,
+			models.MonitorEvent{
+				Action:    models.MonitorCreate,
+				MonitorId: monitorId,
+			},
+		); err != nil {
+			log.Printf("🔌 API - 🔴 Failed to schedule monitor: %v\n", err)
+			http.Error(w, "Failed to schedule monitor", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(response))
+	_, _ = w.Write([]byte(monitorId))
 }
 
-func UpdateMonitor(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleUpdateMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	db := postgres.NewConnection(ctx)
 
 	var monitor models.MonitorUpdateDTO
 
@@ -91,7 +105,7 @@ func UpdateMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rowsAffected, err := postgres.UpdateMonitor(ctx, db, monitor)
+	rowsAffected, err := postgres.UpdateMonitor(ctx, s.PostgresDB, monitor)
 	if err != nil {
 		log.Printf("🔌 API - 🔴 Failed to update monitor: %v\n", err)
 		http.Error(w, "Failed to update monitor", http.StatusInternalServerError)
@@ -106,12 +120,11 @@ func UpdateMonitor(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteMonitor(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeleteMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	db := postgres.NewConnection(ctx)
 	monitorId := r.PathValue("monitorId")
 
-	rowsAffected, err := postgres.DeleteMonitor(ctx, db, monitorId)
+	rowsAffected, err := postgres.DeleteMonitor(ctx, s.PostgresDB, monitorId)
 	if err != nil {
 		log.Printf("🔌 API - 🔴 Failed to delete monitor: %v\n", err)
 		http.Error(w, "Failed to update monitor", http.StatusInternalServerError)
@@ -120,6 +133,19 @@ func DeleteMonitor(w http.ResponseWriter, r *http.Request) {
 
 	if rowsAffected == 0 {
 		http.Error(w, "Monitor not found", http.StatusNotFound)
+		return
+	}
+
+	if err := s.kafkaProducer.ProduceMessage(
+		constants.KafkaMonitorScheduleTopic,
+		monitorId,
+		models.MonitorEvent{
+			Action:    models.MonitorUpdate,
+			MonitorId: monitorId,
+		},
+	); err != nil {
+		log.Printf("🔌 API - 🔴 Failed to schedule monitor: %v\n", err)
+		http.Error(w, "Failed to schedule monitor", http.StatusInternalServerError)
 		return
 	}
 

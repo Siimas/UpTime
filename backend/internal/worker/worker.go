@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -99,13 +98,7 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *events.KafkaProduce
 		Error:   errorMessage,
 	}
 
-	messageData, err := json.Marshal(monitorResult)
-	if err != nil {
-		log.Println("🚨 Error marshaling data:", err)
-		return
-	}
-
 	topic := constants.KafkaMonitorResultsTopic
 	key := constants.RedisMonitorKey + ":" + monitorId
-	kp.ProduceMessage(topic, key, string(messageData))
+	kp.ProduceMessage(topic, key, monitorResult)
 }

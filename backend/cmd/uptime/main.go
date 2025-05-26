@@ -65,7 +65,7 @@ func main() {
 
 	go scheduler.Run(ctx, db, schedulerConsumer, redisClient)
 
-	go http.StartServer(ctx, config.HTTPServerAddr)
+	go http.StartServer(ctx, config.HTTPServerAddr, db, kafkaProducer)
 
 	// Block main until context is cancelled
 	<-ctx.Done()

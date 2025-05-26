@@ -1,4 +1,4 @@
-package monitor
+package scheduler
 
 import (
 	"context"
@@ -18,9 +18,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *events.KafkaConsumer, rdb *redis.Client) {
-	log.Println("✅ - Monitor Flusher Online")
-	defer log.Println("⚠️ - Monitor Flusher Shutting Down")
+func Run(ctx context.Context, db *pgx.Conn, kc *events.KafkaConsumer, rdb *redis.Client) {
+	log.Println("✅ - Scheduler Online")
+	defer log.Println("⚠️ - Scheduler Shutting Down")
+	ctx.Done()
 
 	err := kc.Consumer.SubscribeTopics([]string{constants.KafkaMonitorScheduleTopic}, nil)
 	if err != nil {
@@ -43,19 +44,20 @@ func RunMonitorFlusher(ctx context.Context, db *pgx.Conn, kc *events.KafkaConsum
 			ev, err := kc.Consumer.ReadMessage(100 * time.Millisecond)
 			if err != nil {
 				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					log.Printf("Kafka error: %s\n", kafkaErr)
+					log.Printf("⚠️ Scheduler Kafka error: %s\n", kafkaErr)
+					os.Exit(1)
 				}
 				continue
 			}
 
-			go handleMonitorFlusher(ctx, ev, rdb)
+			go handleMonitorScheduler(ctx, ev, rdb)
 		}
 	}
 
 	kc.Consumer.Close()
 }
 
-func handleMonitorFlusher(ctx context.Context, km *kafka.Message, rdb *redis.Client) error {
+func handleMonitorScheduler(ctx context.Context, km *kafka.Message, rdb *redis.Client) error {
 	var monitorEvent models.MonitorEvent
 	if err := json.Unmarshal(km.Value, &monitorEvent); err != nil {
 		log.Printf("Error converting json to monitor action: %s\n", err)

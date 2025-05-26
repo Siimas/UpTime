@@ -5,6 +5,7 @@ import (
 	"uptime/internal/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func GetAllMonitors(ctx context.Context, db *pgx.Conn) ([]models.Monitor, error) {
@@ -109,4 +110,14 @@ func DeleteMonitor(ctx context.Context, db *pgx.Conn, monitorId string) (int64, 
 	}
 
 	return result.RowsAffected(), nil
+}
+
+func StoreMonitorResult(ctx context.Context, mr models.MonitorResult, pooldb *pgxpool.Pool) error {
+	sql := `INSERT INTO monitor_results (monitor_id, status, latency_ms, response_code, error, checked_at) VALUES ($1, $2, $3, $4, $5, $6)`
+
+	if _, err := pooldb.Exec(ctx, sql, mr.Id, mr.Status, mr.Latency, mr.Code, mr.Error, mr.Date); err != nil {
+		return err
+	}
+
+	return nil
 }

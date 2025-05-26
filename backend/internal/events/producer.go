@@ -11,7 +11,7 @@ type KafkaProducer struct {
 	Producer *kafka.Producer
 }
 
-func (kp *KafkaProducer) ProduceMessage(topic, key, value string) error{
+func (kp *KafkaProducer) ProduceMessage(topic, key, value string) error {
 	deliveryChan := make(chan kafka.Event)
 
 	err := kp.Producer.Produce(&kafka.Message{
@@ -45,7 +45,7 @@ func NewCloudProducer() *KafkaProducer {
 		"client.id":         config.GetEnv("KAFKA_CLIENT_ID"),
 		"acks":              "all",
 	})
-	
+
 	return &KafkaProducer{kp}
 }
 

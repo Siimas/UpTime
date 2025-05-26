@@ -37,7 +37,7 @@ func SubscribeTopic(
 			ev, err := kc.ReadMessage(100 * time.Millisecond)
 			if err != nil {
 				if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() != kafka.ErrTimedOut {
-					fmt.Printf("Kafka error: %s\n", kafkaErr)
+					fmt.Printf("⚠️ Kafka error: %s\n", kafkaErr)
 				}
 				continue
 			}

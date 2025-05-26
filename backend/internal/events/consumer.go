@@ -26,7 +26,7 @@ func (kc *KafkaConsumer) Consume(ctx context.Context) {
 				case *kafka.Message:
 					log.Printf("⬇️ Received message: %s = %s\n", string(e.Key), string(e.Value))
 				case kafka.Error:
-					log.Printf("⚠️ Kafka error: %v\n", e)
+					log.Printf("⚠️ Consumer Kafka error: %v\n", e)
 				}
 			}
 		}

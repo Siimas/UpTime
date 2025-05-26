@@ -9,11 +9,13 @@ import (
 	"time"
 	"uptime/internal/config"
 	"uptime/internal/http"
+	"uptime/internal/logger"
+	"uptime/internal/scheduler"
 	"uptime/internal/util/color"
+	"uptime/internal/worker"
 
 	"uptime/internal/cache"
 	"uptime/internal/events"
-	"uptime/internal/monitor"
 	"uptime/internal/postgres"
 )
 
@@ -54,11 +56,11 @@ func main() {
 		log.Println("🚨 Error starting flusher: " + err.Error())
 	}
 
-	go monitor.RunMonitorFlusher(ctx, db, kafkaConsumer, redisClient)
+	go logger.Run(ctx, pooldb, kafkaConsumer, redisClient)
 
-	go monitor.RunMonitorResults(ctx, pooldb, kafkaConsumer, redisClient)
+	go worker.Run(ctx, redisClient, kafkaProducer)
 
-	go monitor.RunMonitorRunner(ctx, redisClient, kafkaProducer)
+	go scheduler.Run(ctx, db, kafkaConsumer, redisClient)
 
 	go http.StartServer(ctx, config.HTTPServerAddr)
 

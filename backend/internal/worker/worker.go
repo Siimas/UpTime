@@ -1,20 +1,64 @@
-package monitor
+package worker
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+	"uptime/internal/cache"
 	"uptime/internal/constants"
 	"uptime/internal/events"
 	"uptime/internal/models"
+
+	"github.com/redis/go-redis/v9"
 )
+
+func Run(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
+	log.Println("✅ - Monitor Runner Online")
+	defer log.Println("⚠️ - Monitor Runner Shutting Down")
+
+	for {
+		now := float64(time.Now().Unix())
+
+		monitorIDs, err := rdb.ZRangeByScore(ctx, constants.RedisMonitorsScheduleKey, &redis.ZRangeBy{
+			Min:   "-inf",
+			Max:   fmt.Sprintf("%f", now),
+			Count: 1000,
+		}).Result()
+		if err != nil {
+			log.Printf("Failed to fetch due monitors: %v", err)
+			continue
+		}
+
+		for _, key := range monitorIDs {
+			monitor, err := cache.GetMonitor(ctx, rdb, key)
+			if err != nil {
+				log.Printf("Error retrieving monitor %s: %v", key, err)
+				continue
+			}
+
+			monitorId := strings.Split(key, ":")[1]
+
+			go Ping(monitorId, monitor, kp)
+
+			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
+			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
+				Score:  float64(nextPing),
+				Member: key,
+			})
+		}
+	}
+}
 
 func Ping(monitorId string, monitor models.MonitorCache, kp *events.KafkaProducer) {
 	if monitor.Endpoint == "" {
-		log.Println("🚨 Empty Endpoint! ")
+		log.Println("🚨 Caught Empty Endpoint!")
 		return
 	}
+
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}

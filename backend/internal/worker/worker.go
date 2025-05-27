@@ -6,39 +6,46 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 	"uptime/internal/cache"
 	"uptime/internal/constants"
 	"uptime/internal/events"
 	"uptime/internal/models"
+	"uptime/internal/util/workers"
 
 	"github.com/redis/go-redis/v9"
 )
-
-type scheduleTask struct {
-	Key string
-	Wg  *sync.WaitGroup
-}
 
 func Run(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
 	log.Println("✅ - Monitor Runner Online")
 	defer log.Println("⚠️ - Monitor Runner Shutting Down")
 
-	pingChan := make(chan string, 1000)
-	scheduleChan := make(chan scheduleTask, 1000)
+	scheduleWp := workers.NewPool(constants.PingChanSize, true, func(key string) {
+		monitor, err := cache.GetMonitor(ctx, rdb, key)
+		if err != nil {
+			log.Printf("Error retrieving monitor %s: %v", key, err)
+		}
 
-	pingWorkerCount := 10
-	for i := range pingWorkerCount {
-		go pingWorker(i, ctx, pingChan, rdb, kp)
-	}
+		nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
+		rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
+			Score:  float64(nextPing),
+			Member: key,
+		})
+	})
 
-	shceduleWorkerCount := 10
-	for i := range shceduleWorkerCount {
-		go scheduleWorker(i, ctx, scheduleChan, rdb)
-	}
+	scheduleWp.Launch(constants.PingWorkerCount, ctx)
 
-	var wg sync.WaitGroup
+	pingWp := workers.NewPool(constants.PingChanSize, false, func(key string) {
+		monitor, err := cache.GetMonitor(ctx, rdb, key)
+		if err != nil {
+			log.Printf("Error retrieving monitor %s: %v", key, err)
+		}
+
+		monitorId := strings.Split(key, ":")[1]
+		Ping(monitorId, monitor, kp)
+	})
+
+	pingWp.Launch(constants.PingWorkerCount, ctx)
 
 	for {
 		now := float64(time.Now().Unix())
@@ -53,66 +60,12 @@ func Run(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
 			continue
 		}
 
-		wg.Add(len(monitorIDs))
-
 		for _, key := range monitorIDs {
-			pingChan <- key
-			scheduleChan <- scheduleTask{Key: key, Wg: &wg}
+			pingWp.Dispach(key)
+			scheduleWp.Dispach(key)
 		}
 
-		wg.Wait()
-	}
-}
-
-func pingWorker(
-	id int,
-	ctx context.Context,
-	pingChan <-chan string,
-	rdb *redis.Client,
-	kp *events.KafkaProducer,
-) {
-	log.Printf("👷 Worker %d started", id)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("👷 Worker %d shutting down", id)
-			return
-		case key := <-pingChan:
-			monitor, err := cache.GetMonitor(ctx, rdb, key)
-			if err != nil {
-				log.Printf("Error retrieving monitor %s: %v", key, err)
-				continue
-			}
-
-			monitorId := strings.Split(key, ":")[1]
-
-			Ping(monitorId, monitor, kp)
-		}
-	}
-}
-
-func scheduleWorker(id int, ctx context.Context, scheduleChan <-chan scheduleTask, rdb *redis.Client) {
-	log.Printf("👷 Schedule Worker %d started", id)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("👷 Schedule Worker %d shutting down", id)
-			return
-		case task := <-scheduleChan:
-			monitor, err := cache.GetMonitor(ctx, rdb, task.Key)
-			if err != nil {
-				log.Printf("Error retrieving monitor %s: %v", task.Key, err)
-				continue
-			}
-
-			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
-			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
-				Score:  float64(nextPing),
-				Member: task.Key,
-			})
-
-			task.Wg.Done()
-		}
+		scheduleWp.Wg.Wait()
 	}
 }
 

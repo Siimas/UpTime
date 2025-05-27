@@ -19,10 +19,9 @@ import (
 func Run(ctx context.Context, pooldb *pgxpool.Pool, kc *events.KafkaConsumer, rdb *redis.Client) {
 	defer log.Println("⚠️ - Logger Shutting Down")
 
-	msgChan := make(chan *kafka.Message, 1000)
+	msgChan := make(chan *kafka.Message, constants.LoggerChanSize)
 
-	workerCount := 2
-	for i := range workerCount {
+	for i := range constants.LoggerWorkerCount {
 		go loggerWorker(i, ctx, msgChan, pooldb, rdb)
 	}
 

@@ -138,7 +138,7 @@ func (s *Server) handleDeleteMonitor(w http.ResponseWriter, r *http.Request) {
 		constants.KafkaMonitorScheduleTopic,
 		monitorId,
 		models.MonitorEvent{
-			Action:    models.MonitorUpdate,
+			Action:    models.MonitorDelete,
 			MonitorId: monitorId,
 		},
 	); err != nil {

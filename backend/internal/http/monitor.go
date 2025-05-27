@@ -115,6 +115,19 @@ func (s *Server) handleUpdateMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.kafkaProducer.ProduceMessage(
+		constants.KafkaMonitorScheduleTopic,
+		monitor.Id,
+		models.MonitorEvent{
+			Action:    models.MonitorUpdate,
+			MonitorId: monitor.Id,
+		},
+	); err != nil {
+		log.Printf("🔌 API - 🔴 Failed to schedule monitor: %v\n", err)
+		http.Error(w, "Failed to schedule monitor", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

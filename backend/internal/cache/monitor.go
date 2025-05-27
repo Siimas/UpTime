@@ -111,6 +111,5 @@ func ScheduleMonitor(ctx context.Context, mr models.Monitor, rdb *redis.Client) 
 		return err
 	}
 
-	log.Printf("⏳ Monitor Scheduled: %s \n", mr.Id)
 	return nil
 }

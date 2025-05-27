@@ -32,7 +32,7 @@ func handleMonitorScheduler(ctx context.Context, km *kafka.Message, db *pgx.Conn
 		return err
 	}
 
-	log.Println("🔄 Scheduling Monitor: ", monitorEvent.Action, monitorEvent.MonitorId)
+	log.Printf("🔄 Scheduling Monitor: [%s]\t%s \n", monitorEvent.Action, monitorEvent.MonitorId)
 
 	switch monitorEvent.Action {
 	case models.MonitorCreate:
@@ -46,6 +46,26 @@ func handleMonitorScheduler(ctx context.Context, km *kafka.Message, db *pgx.Conn
 			log.Printf("Error schedulling monitor (%s): %s\n", monitorEvent.MonitorId, err)
 			return err
 		}
+
+	case models.MonitorUpdate:
+		monitor, err := postgres.GetSingleMonitor(ctx, db, monitorEvent.MonitorId)
+		if err != nil {
+			log.Printf("Error getting monitor (%s): %s\n", monitorEvent.MonitorId, err)
+			return err
+		}
+
+		if monitor.Active {
+			if err := cache.ScheduleMonitor(ctx, monitor, rdb); err != nil {
+				log.Printf("Error schedulling monitor (%s): %s\n", monitorEvent.MonitorId, err)
+				return err
+			}
+		} else {
+			if err := cache.DeleteMonitor(ctx, monitorEvent.MonitorId, rdb); err != nil {
+				log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.MonitorId, err)
+				return err
+			}
+		}
+
 	case models.MonitorDelete:
 		if err := cache.DeleteMonitor(ctx, monitorEvent.MonitorId, rdb); err != nil {
 			log.Printf("Error deleting monitor (%s): %s\n", monitorEvent.MonitorId, err)
@@ -55,6 +75,6 @@ func handleMonitorScheduler(ctx context.Context, km *kafka.Message, db *pgx.Conn
 
 	}
 
-	log.Println("✅ Successfully Updated Schedulled Monitor: ", monitorEvent.Action, monitorEvent.MonitorId)
+	log.Printf("✅ Successfully Schedulled Monitor: [%s]\t%s \n", monitorEvent.Action, monitorEvent.MonitorId)
 	return nil
 }

@@ -70,8 +70,3 @@ func handleShutdown(ctx context.Context, server *http.Server) {
 		log.Println("HTTP server gracefully stopped")
 	}()
 }
-
-func StartServer(ctx context.Context, addr string, db *pgx.Conn, kp *events.KafkaProducer) {
-	server := NewServer(addr, db, kp)
-	server.Run(ctx)
-}

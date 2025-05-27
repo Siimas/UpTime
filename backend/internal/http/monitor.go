@@ -55,8 +55,6 @@ func (s *Server) handleGetSingleMonitor(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleCreateMonitor(w http.ResponseWriter, r *http.Request) {
-	log.Println("🙈 HERE")
-
 	ctx := r.Context()
 
 	var monitor models.MonitorCreateDTO

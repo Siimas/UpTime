@@ -13,7 +13,6 @@ func GetAllMonitors(ctx context.Context, db *pgx.Conn) ([]models.Monitor, error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	var monitors []models.Monitor
 
@@ -49,7 +48,6 @@ func GetActiveMonitors(ctx context.Context, db *pgx.Conn) ([]models.Monitor, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	var monitors []models.Monitor
 

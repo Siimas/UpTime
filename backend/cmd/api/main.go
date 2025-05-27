@@ -32,6 +32,6 @@ func main() {
 	kafkaProducer := events.NewLocalProducer()
 	defer kafkaProducer.Producer.Close()
 
-	http.StartServer(ctx, config.HTTPServerAddr, db, kafkaProducer)
-
+	server := http.NewServer(config.HTTPServerAddr, db, kafkaProducer)
+	server.Run(ctx)
 }

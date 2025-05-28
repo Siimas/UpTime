@@ -10,6 +10,7 @@ import (
 	"uptime/internal/events"
 	"uptime/internal/models"
 	"uptime/internal/postgres"
+	"uptime/internal/util/workers"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,35 +20,18 @@ import (
 func Run(ctx context.Context, pooldb *pgxpool.Pool, kc *events.KafkaConsumer, rdb *redis.Client) {
 	defer log.Println("⚠️ - Logger Shutting Down")
 
-	msgChan := make(chan *kafka.Message, 1000)
+	wp := workers.NewPool(constants.LoggerChanSize, false, func(msg *kafka.Message) {
+		log.Printf("📋 Logging Monitor with key %s", msg.Key)
+		handleMonitorResult(ctx, msg, pooldb, rdb)
+	})
 
-	workerCount := 2
-	for i := range workerCount {
-		go loggerWorker(i, ctx, msgChan, pooldb, rdb)
-	}
+	wp.Launch(constants.LoggerWorkerCount, ctx)
 
 	log.Println("✅ - Logger Online")
 
 	kc.Subscribe(ctx, []string{constants.KafkaMonitorResultsTopic}, func(ev *kafka.Message) {
-		select {
-		case msgChan <- ev:
-		case <-ctx.Done():
-		}
+		wp.Dispach(ev)
 	})
-}
-
-func loggerWorker(id int, ctx context.Context, msgChan <-chan *kafka.Message, pooldb *pgxpool.Pool, rdb *redis.Client) {
-	log.Printf("👷 Logger Worker %d started", id)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("👷 Logger Worker %d shutting down", id)
-			return
-		case msg := <-msgChan:
-			log.Printf("👷 Logger Worker %d - 📋 Logging Monitor with key %s", id, msg.Key)
-			handleMonitorResult(ctx, msg, pooldb, rdb)
-		}
-	}
 }
 
 func handleMonitorResult(ctx context.Context, km *kafka.Message, pooldb *pgxpool.Pool, rdb *redis.Client) {

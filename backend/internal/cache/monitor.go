@@ -39,7 +39,7 @@ func GetMonitor(ctx context.Context, rdb *redis.Client, key string) (models.Moni
 
 func UpdateMonitorStatus(ctx context.Context, mr models.MonitorResult, rdb *redis.Client) error {
 	key := constants.RedisMonitorKey + ":" + mr.Id
-	return rdb.HSet(ctx, key, "status", mr.Status.String()).Err()
+	return rdb.HSet(ctx, key, "Status", mr.Status.String()).Err()
 }
 
 func DeleteMonitor(ctx context.Context, monitorId string, rdb *redis.Client) error {
@@ -111,6 +111,5 @@ func ScheduleMonitor(ctx context.Context, mr models.Monitor, rdb *redis.Client) 
 		return err
 	}
 
-	log.Printf("⏳ Monitor Scheduled: %s \n", mr.Id)
 	return nil
 }

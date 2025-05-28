@@ -3,6 +3,7 @@ package http
 import (
 	"log"
 	"net/http"
+	"time"
 )
 
 type Middleware func(http.Handler) http.HandlerFunc
@@ -25,7 +26,8 @@ func AuthMiddleware(next http.Handler) http.HandlerFunc {
 
 func RequestLoggerMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("🎯", r.Method, r.URL.Path)
+		start := time.Now()
 		next.ServeHTTP(w, r)
+		log.Printf("🎯 [%s]\t(%v)\t%s", r.Method, time.Since(start), r.URL.Path)
 	}
 }

@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"uptime/internal/constants"
 	"uptime/internal/events"
 	"uptime/internal/models"
+	"uptime/internal/util/workers"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,6 +19,33 @@ import (
 func Run(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
 	log.Println("✅ - Monitor Runner Online")
 	defer log.Println("⚠️ - Monitor Runner Shutting Down")
+
+	scheduleWp := workers.NewPool(constants.PingChanSize, true, func(key string) {
+		monitor, err := cache.GetMonitor(ctx, rdb, key)
+		if err != nil {
+			log.Printf("Error retrieving monitor %s: %v", key, err)
+		}
+
+		nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
+		rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
+			Score:  float64(nextPing),
+			Member: key,
+		})
+	})
+
+	scheduleWp.Launch(constants.PingWorkerCount, ctx)
+
+	pingWp := workers.NewPool(constants.PingChanSize, false, func(key string) {
+		monitor, err := cache.GetMonitor(ctx, rdb, key)
+		if err != nil {
+			log.Printf("Error retrieving monitor %s: %v", key, err)
+		}
+
+		monitorId := strings.Split(key, ":")[1]
+		Ping(monitorId, monitor, kp)
+	})
+
+	pingWp.Launch(constants.PingWorkerCount, ctx)
 
 	for {
 		now := float64(time.Now().Unix())
@@ -34,22 +61,11 @@ func Run(ctx context.Context, rdb *redis.Client, kp *events.KafkaProducer) {
 		}
 
 		for _, key := range monitorIDs {
-			monitor, err := cache.GetMonitor(ctx, rdb, key)
-			if err != nil {
-				log.Printf("Error retrieving monitor %s: %v", key, err)
-				continue
-			}
-
-			monitorId := strings.Split(key, ":")[1]
-
-			go Ping(monitorId, monitor, kp)
-
-			nextPing := time.Now().Add(time.Duration(monitor.Interval) * time.Second).Unix()
-			rdb.ZAdd(ctx, constants.RedisMonitorsScheduleKey, redis.Z{
-				Score:  float64(nextPing),
-				Member: key,
-			})
+			pingWp.Dispach(key)
+			scheduleWp.Dispach(key)
 		}
+
+		scheduleWp.Wg.Wait()
 	}
 }
 
@@ -99,13 +115,7 @@ func Ping(monitorId string, monitor models.MonitorCache, kp *events.KafkaProduce
 		Error:   errorMessage,
 	}
 
-	messageData, err := json.Marshal(monitorResult)
-	if err != nil {
-		log.Println("🚨 Error marshaling data:", err)
-		return
-	}
-
 	topic := constants.KafkaMonitorResultsTopic
 	key := constants.RedisMonitorKey + ":" + monitorId
-	kp.ProduceMessage(topic, key, string(messageData))
+	kp.ProduceMessage(topic, key, monitorResult)
 }

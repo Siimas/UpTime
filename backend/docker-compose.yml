@@ -1,0 +1,59 @@
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: api
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      - ENV=PROD
+    env_file:
+      - .env
+    networks:
+      - backend-net
+
+  logger:
+    build:
+      context: .
+      dockerfile: docker/logger.Dockerfile
+    container_name: logger
+    restart: unless-stopped
+    environment:
+      - ENV=PROD
+    env_file:
+      - .env
+    networks:
+      - backend-net
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    container_name: worker
+    restart: unless-stopped
+    environment:
+      - ENV=PROD
+    env_file:
+      - .env
+    networks:
+      - backend-net
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/scheduler.Dockerfile
+    container_name: scheduler
+    restart: unless-stopped
+    environment:
+      - ENV=PROD
+    env_file:
+      - .env
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge

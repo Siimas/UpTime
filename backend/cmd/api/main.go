@@ -29,7 +29,7 @@ func main() {
 	db := postgres.NewConnection(ctx)
 	defer db.Close(context.Background())
 
-	kafkaProducer := events.NewLocalProducer()
+	kafkaProducer := events.NewCloudProducer()
 	defer kafkaProducer.Producer.Close()
 
 	server := http.NewServer(config.HTTPServerAddr, db, kafkaProducer)

@@ -30,7 +30,7 @@ func main() {
 	pooldb := postgres.NewPoolConnection(ctx, config.PostgresURL)
 	defer pooldb.Close()
 
-	loggerConsumer := events.NewLocalConsumer()
+	loggerConsumer := events.NewCloudConsumer()
 	defer loggerConsumer.Consumer.Close()
 
 	redisClient := cache.NewClient(config.RedisURL)

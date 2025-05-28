@@ -20,7 +20,9 @@ func LoadEnv() {
 }
 
 func Load() *Config {
-	LoadEnv()
+	// if environment := os.Getenv("ENV"); environment != "PROD" {
+	// 	LoadEnv()
+	// }
 	return &Config{
 		PostgresURL:    GetEnv("POSTGRES_URL"),
 		RedisURL:       GetEnv("REDIS_URL"),

@@ -52,6 +52,7 @@ func NewCloudConsumer() *KafkaConsumer {
 		"client.id":          config.GetEnv("KAFKA_CLIENT_ID"),
 		"auto.offset.reset":  "earliest",
 		"enable.auto.commit": true,
+		"ssl.ca.location": "/etc/ssl/certs/ca-certificates.crt",
 	})
 
 	return &KafkaConsumer{kc}

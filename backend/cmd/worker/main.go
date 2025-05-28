@@ -28,7 +28,7 @@ func main() {
 
 	rdb := cache.NewClient(config.RedisURL)
 
-	kp := events.NewLocalProducer()
+	loggerProducer := events.NewCloudProducer()
 
-	worker.Run(ctx, rdb, kp)
+	worker.Run(ctx, rdb, loggerProducer)
 }

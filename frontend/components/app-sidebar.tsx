@@ -29,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 
 const data = {
   user: {
@@ -44,7 +45,7 @@ const data = {
     },
     {
       title: "Monitors",
-      url: "/monitors",
+      url: "/dashboard/monitors",
       icon: IconActivity,
     },
   ],
@@ -77,10 +78,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <Link href="/dashboard">
                 <IconRadar className="!size-5" />
                 <span className="text-base font-semibold">UpTime</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
